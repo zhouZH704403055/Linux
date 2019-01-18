@@ -8,7 +8,23 @@
 #include<strings.h>
 #include<cstring>
 #include<stdlib.h>
+#include<pthread.h>
 using namespace std;
+void *Recv(void * arg)
+{
+	char buf[1024] = {0};
+	int socket_fd = *(int*)arg;
+	while(1)
+	{
+		ssize_t r_sz = 1;
+      	  r_sz=read(socket_fd,buf,sizeof(buf)-1);
+      	  if(r_sz>0)
+        	{
+      	      buf[r_sz]=0;
+      	      cout<<buf;
+        	}	
+	}
+}
 int main(int argc,char* argv[])
 {
     int socket_fd=socket(AF_INET,SOCK_STREAM,0);
@@ -26,21 +42,19 @@ int main(int argc,char* argv[])
     if(connect(socket_fd,(struct sockaddr*)&peer,len)<0)
     {
         cerr<<"connect error!!!"<<endl;
-    }
+    }	
+	pthread_t tid;
+	pthread_create(&tid,0,Recv,(void*)&socket_fd);
     char buf[1024]={0};
     std::string message;
     while(1)
     {
-        cout<<"Plase Enter# ";
+		
+	//cout<<"\nPlase Enter# ";
         cin>>message;
         write(socket_fd,message.c_str(),message.size());
-        ssize_t r_sz=read(socket_fd,buf,sizeof(buf)-1);
-        if(r_sz>0)
-        {
-            buf[r_sz]=0;
-            cout<<"Server Echo# "<<buf<<endl;
-        }
     }
     close(socket_fd);
     return 0;
 }
+

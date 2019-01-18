@@ -2,7 +2,7 @@
 
 void Usage(std::string proc)
 {
-    std::cout<<"Usage: "<<proc<<"local_ip local_port"<<std::endl;
+    std::cout<<"Usage: "<<proc<<"local_port"<<std::endl;
 }
 
 int main(int argc,char* argv[])
@@ -20,3 +20,4 @@ int main(int argc,char* argv[])
     delete sp;
     return 0;
 }
+

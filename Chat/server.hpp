@@ -1,5 +1,5 @@
 #pragma once
-
+#include<vector>
 #include<iostream>
 #include<sys/types.h>
 #include<sys/socket.h>
@@ -13,14 +13,13 @@
 //#include<signal.h>
 #include<sys/wait.h>
 #include<pthread.h>
-
-using std::cout;
-using std::cerr;
-using std::endl;
-
+#include<stdio.h>
+using namespace std;
+typedef struct sockaddr_in sockaddr_in;
 class Server;
 struct Pthread_data
 {
+	int id;
     Server* pServer;
     int accept_fd;
 };
@@ -96,10 +95,8 @@ class Server
      //    ;
      //}
      Server(const int &port)
-         :sock(port)
-     {
-         ;
-     }
+         :sock(port){}
+		 
      void InitServer()
      {
          //signal(SIGCHLD,SIG_IGN);
@@ -107,12 +104,21 @@ class Server
          sock.Bind();
          sock.Listen();
      }
-     void Service(int fd)
-     {
-         char buf[1024]={0};
-         while(1)
+	 
+	 void Chatwith(int id,int sendfd,int recvfd)
+	 {
+		 string msg("the user ");
+		 msg+=(char)(id+'0');
+		 msg+=" is chat with you!\n";
+		 write(recvfd,msg.c_str(),msg.size());
+		 msg = "";
+		 msg+="user ";
+		 msg+=(char)(id+'0');
+		msg+=": ";
+		 char buf[1024]={0};
+		 while(1)
          {
-             ssize_t r_sz=read(fd,buf,sizeof(buf)-1);
+             ssize_t r_sz=read(sendfd,buf,sizeof(buf)-1);
              if(r_sz==0)
              {
                  cout<<"客户端退出！！！"<<endl;
@@ -120,9 +126,14 @@ class Server
              }
              else if(r_sz>0)
              {
-                 buf[r_sz]=0;
-                 cout<<buf<<endl;
-                 write(fd,"OJBK",5);
+                 buf[r_sz]='\n';
+		     buf[r_sz+1] = 0;
+			msg+=buf;
+		    write(recvfd,msg.c_str(),msg.size());
+		 	msg = "";
+			 msg+="user ";
+		 	msg+=(char)(id+'0');
+			msg+=": ";
              }
              else
              {
@@ -130,6 +141,59 @@ class Server
                  break;
              }
          }
+	 }
+     void Service(int fd,int id)
+     {
+         	char buf[1024] = {0};
+		 char p[64] = {0};
+		 sprintf(p,"server: your user id is: %d\n",id);
+		 write(fd,p,strlen(p));
+		 while(1)
+		 {
+			write(fd,"server: please choose user who you want to chat\n",48);
+			ssize_t r_sz=read(fd,buf,sizeof(buf)-1);
+			if(r_sz==0)
+			{
+				cout<<"客户端退出！！！"<<endl;
+				break;
+			}
+			else if(r_sz>0)
+			{
+				buf[r_sz]=0;
+				int i = atoi(buf);
+				
+				if(i>=clients.size()||i<0)
+				{
+					write(fd,"server: the user does not exist!\n",34);
+					continue;
+				}
+				else 
+				{
+					Chatwith(id,fd,clients[i]);
+					continue;
+				}
+			}
+		 }
+         // while(1)
+         // {
+             // ssize_t r_sz=recv(fd,buf,sizeof(buf)-1,msg_dontwait);
+             // if(r_sz==0)
+             // {
+                 // cout<<"客户端退出！！！"<<endl;
+                 // break;
+             // }
+             // else if(r_sz>0)
+             // {
+                 // buf[r_sz]=0;
+                 // cout<<buf<<endl;
+                 // send(fd,"recv:ok",5,msg_dontwait);
+             // }
+             // else
+             // {
+                 // cerr<<"read error!!!"<<endl;
+                 // break;
+             // }
+         // }
          close(fd);
      }
      static void* ThreadRun(void* arg)
@@ -138,8 +202,9 @@ class Server
          Pthread_data* p=(Pthread_data*)arg;
          Server* pServer=p->pServer;
          int accept_fd=p->accept_fd;
+		 int id = p->id;
          delete p;
-         pServer->Service(accept_fd);
+         pServer->Service(accept_fd, id);
      }
      void Run()
      {
@@ -151,9 +216,11 @@ class Server
                  continue;
              }
              cout<<"连接到一个新客户端！！"<<endl;
+			 clients.push_back(accept_fd);
              Pthread_data* p=new Pthread_data;
+			 p->id = clients.size()-1;
              p->pServer=this;
-             p->accept_fd=accept_fd;
+             p->accept_fd = accept_fd;
              pthread_t tid;
              pthread_create(&tid,NULL,ThreadRun,p);
              //pid_t pid=fork();
@@ -177,4 +244,6 @@ class Server
      }
 private:
      Sock sock;
+	 vector<int> clients;
 };
+
